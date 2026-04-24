@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orthopedic Nursing Pro Simulator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+
+:root {
+--primary: #0ea5e9;
+--primary-dark: #0284c7;
+--bg-dark: #0f172a;
+--panel-bg: #1e293b;
+--text-main: #f8fafc;
+--success: #10b981;
+--warning: #f59e0b;
+--danger: #ef4444;
+}
+
+body {
+font-family: 'Prompt', sans-serif;
+background-color: var(--bg-dark);
+color: var(--text-main);
+overflow-x: hidden;
+}
+
+.glass-panel {
+background: rgba(30, 41, 59, 0.7);
+backdrop-filter: blur(12px);
+-webkit-backdrop-filter: blur(12px);
+border: 1px solid rgba(255, 255, 255, 0.1);
+border-radius: 1rem;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+background: rgba(0,0,0,0.1);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+background: var(--primary);
+border-radius: 10px;
+}
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+
+@keyframes pulse-red {
+0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+.critical-pulse { animation: pulse-red 2s infinite; border: 1px solid var(--danger); }
+
+/* Option Buttons */
+.option-btn {
+transition: all 0.2s ease;
+position: relative;
+overflow: hidden;
+}
+.option-btn::before {
+content: '';
+position: absolute;
+top: 0; left: 0; width: 4px; height: 100%;
+background-color: var(--primary);
+transition: width 0.2s ease;
+z-index: 0;
+opacity: 0;
+}
+.option-btn:hover:not(:disabled)::before {
+opacity: 1;
+}
+.option-btn > * { position: relative; z-index: 1; }
+
+.option-correct { background-color: rgba(16, 185, 129, 0.2) !important; border-color: var(--success) !important; color: white; }
+.option-wrong { background-color: rgba(239, 68, 68, 0.2) !important; border-color: var(--danger) !important; opacity: 0.7; }
+.option-selected-wrong { background-color: var(--danger) !important; color: white; }
+
+/* SVG Body */
+.body-part { transition: fill 0.3s ease; }
+.body-part.affected { fill: var(--danger); animation: pulse-svg 1.5s infinite; }
+@keyframes pulse-svg { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+/* Progress Bars */
+.progress-bar-inner { transition: width 0.3s ease, background-color 0.3s ease; }
+
+/* Status Badges */
+.status-badge { padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+.status-normal { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.status-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.status-critical { background: rgba(239, 68, 68, 0.2); color: #f87171; animation: pulse-red 2s infinite; }
+
+#feedbackModal { backdrop-filter: blur(5px); }
+</style>
+</head>
+<body class="min-h-screen flex flex-col relative selection:bg-sky-500 selection:text-white">
+
+<!-- Background Elements -->
+<div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+<div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-sky-900 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-teal-900 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style="animation-delay: 2s;"></div>
+</div>
+
+<!-- Header -->
+<header class="w-full p-4 glass-panel rounded-none border-t-0 border-l-0 border-r-0 flex justify-between items-center z-10">
+<div class="flex items-center gap-3">
+<i class="fa-solid fa-bone text-sky-400 text-2xl"></i>
+<div>
+<h1 class="text-xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-teal-300">ORTHO PRO SIMULATOR</h1>
+<p class="text-xs text-slate-400">Adaptive Clinical Judgment Test</p>
+</div>
+</div>
+<div id="headerStats" class="hidden flex gap-4 md:gap-8 items-center text-sm md:text-base">
+<div class="text-center">
+<p class="text-slate-400 text-xs">LEVEL</p>
+<p id="headLevel" class="font-bold text-sky-400 uppercase">Amateur</p>
+</div>
+<div class="text-center">
+<p class="text-slate-400 text-xs">SCORE</p>
+<p id="headScore" class="font-bold text-emerald-400">0</p>
+</div>
+<div class="text-center">
+<p class="text-slate-400 text-xs">ITEM</p>
+<p id="headItem" class="font-bold text-white"><span id="currItem">1</span>/<span id="totalItems">20</span></p>
+</div>
+</div>
+</header>
+
+<!-- Main Container -->
+<main class="flex-grow flex items-center justify-center p-4 w-full max-w-7xl mx-auto relative z-10">
+
+<!-- SCREEN: Main Menu -->
+<div id="screen-menu" class="w-full max-w-4xl animate-fade-in flex flex-col items-center">
+<div class="text-center mb-10">
+<h2 class="text-4xl md:text-5xl font-bold mb-4">ยินดีต้อนรับสู่หอผู้ป่วยออร์โธปิดิกส์</h2>
+<p class="text-slate-300 max-w-2xl mx-auto">ทดสอบและพัฒนาทักษะการตัดสินใจทางคลินิก (Clinical Judgment) ของคุณผ่านระบบ Adaptive Test ที่ปรับระดับความยากตามความสามารถ พร้อม 25 สถานการณ์จำลอง</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-8">
+<!-- Amateur -->
+<button onclick="setupGame('amateur')" class="glass-panel p-6 text-left group hover:bg-slate-800 transition-all border-l-4 border-l-emerald-500 hover:scale-105 cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-emerald-500/20 rounded-lg text-emerald-400"><i class="fa-solid fa-user-nurse text-2xl"></i></div>
+<span class="text-xs font-bold px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-full">Easy - Medium</span>
+</div>
+<h3 class="text-xl font-bold mb-2">Amateur</h3>
+<p class="text-sm text-slate-400 mb-4">เหมาะสำหรับนักศึกษาพยาบาล เริ่มต้นทบทวนพื้นฐาน</p>
+<ul class="text-xs text-slate-300 space-y-1">
+<li><i class="fa-solid fa-check text-emerald-500 mr-2"></i>เวลา: 60 วินาที/ข้อ</li>
+<li><i class="fa-solid fa-check text-emerald-500 mr-2"></i>HP สูงสุด: 100</li>
+<li><i class="fa-solid fa-check text-emerald-500 mr-2"></i>จำนวน: 15 ข้อ</li>
+</ul>
+</button>
+
+<!-- Intermediate -->
+<button onclick="setupGame('intermediate')" class="glass-panel p-6 text-left group hover:bg-slate-800 transition-all border-l-4 border-l-sky-500 hover:scale-105 cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-sky-500/20 rounded-lg text-sky-400"><i class="fa-solid fa-stethoscope text-2xl"></i></div>
+<span class="text-xs font-bold px-2 py-1 bg-sky-500/20 text-sky-400 rounded-full">Medium - Hard</span>
+</div>
+<h3 class="text-xl font-bold mb-2">Intermediate</h3>
+<p class="text-sm text-slate-400 mb-4">สำหรับพยาบาลทั่วไป ระบบปรับความยากอัตโนมัติ</p>
+<ul class="text-xs text-slate-300 space-y-1">
+<li><i class="fa-solid fa-check text-sky-500 mr-2"></i>เวลา: 45 วินาที/ข้อ</li>
+<li><i class="fa-solid fa-check text-sky-500 mr-2"></i>HP สูงสุด: 100</li>
+<li><i class="fa-solid fa-check text-sky-500 mr-2"></i>จำนวน: 20 ข้อ</li>
+</ul>
+</button>
+
+<!-- Expert -->
+<button onclick="setupGame('expert')" class="glass-panel p-6 text-left group hover:bg-slate-800 transition-all border-l-4 border-l-rose-500 hover:scale-105 cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-rose-500/20 rounded-lg text-rose-400"><i class="fa-solid fa-user-doctor text-2xl"></i></div>
+<span class="text-xs font-bold px-2 py-1 bg-rose-500/20 text-rose-400 rounded-full">Hard - Critical</span>
+</div>
+<h3 class="text-xl font-bold mb-2">Expert</h3>
+<p class="text-sm text-slate-400 mb-4">สำหรับพยาบาลออร์โธเฉพาะทาง เผชิญภาวะวิกฤต</p>
+<ul class="text-xs text-slate-300 space-y-1">
+<li><i class="fa-solid fa-check text-rose-500 mr-2"></i>เวลา: 30 วินาที/ข้อ</li>
+<li><i class="fa-solid fa-check text-rose-500 mr-2"></i>HP สูงสุด: 80</li>
+<li><i class="fa-solid fa-check text-rose-500 mr-2"></i>จำนวน: 25 ข้อ</li>
+</ul>
+</button>
+</div>
+
+<div class="flex gap-4">
+<button onclick="showScreen('screen-leaderboard'); renderLeaderboard();" class="px-6 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 transition-colors">
+<i class="fa-solid fa-trophy text-yellow-500 mr-2"></i> Leaderboard
+</button>
+</div>
+</div>
+
+<!-- SCREEN: Pre-Game Setup (Name input) -->
+<div id="screen-setup" class="hidden w-full max-w-md animate-fade-in">
+<div class="glass-panel p-8 text-center">
+<div class="mb-6 inline-block p-4 bg-sky-500/10 rounded-full">
+<i class="fa-regular fa-id-badge text-4xl text-sky-400"></i>
+</div>
+<h2 class="text-2xl font-bold mb-6">ลงทะเบียนพยาบาล</h2>
+<input type="text" id="playerName" placeholder="กรอกชื่อของคุณ..." class="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 mb-6 text-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all text-center" maxlength="20" onkeypress="if(event.key==='Enter') startGame()">
+<div class="flex gap-3">
+<button onclick="showScreen('screen-menu')" class="flex-1 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors">ยกเลิก</button>
+<button onclick="startGame()" class="flex-1 py-3 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 hover:from-sky-400 hover:to-teal-400 font-bold shadow-lg shadow-sky-500/20 transition-all">เริ่มเวรเลย!</button>
+</div>
+</div>
+</div>
+
+<!-- SCREEN: Gameplay -->
+<div id="screen-game" class="hidden w-full h-full animate-fade-in flex flex-col md:flex-row gap-6">
+
+<!-- Left Panel: Patient Dashboard -->
+<div class="w-full md:w-1/3 flex flex-col gap-4">
+<!-- Patient Info & HP -->
+<div class="glass-panel p-5">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h2 class="text-xl font-bold text-sky-300" id="patName">นายสมชาย ใจดี</h2>
+<p class="text-xs text-slate-400" id="patAge">อายุ 45 ปี</p>
+</div>
+<div id="patStatusBadge" class="status-badge status-normal">Stable</div>
+</div>
+
+<div class="mb-4">
+<div class="flex justify-between text-sm mb-1">
+<span><i class="fa-solid fa-heart-pulse text-rose-500 mr-1"></i> Patient HP</span>
+<span id="hpText" class="font-bold">100%</span>
+</div>
+<div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
+<div id="hpBar" class="bg-emerald-500 h-2.5 rounded-full progress-bar-inner" style="width: 100%"></div>
+</div>
+</div>
+
+<div class="bg-slate-800/50 rounded-lg p-3 text-sm border border-slate-700">
+<p class="mb-1"><span class="text-slate-400">Dx:</span> <span id="patDx" class="font-medium">Closed Fx Femur</span></p>
+<p><span class="text-slate-400">Hx:</span> <span id="patHx" class="font-medium text-slate-300">MVA 2 hrs ago</span></p>
+</div>
+</div>
+
+<!-- Body & Vitals Tabs -->
+<div class="glass-panel flex-grow flex flex-col overflow-hidden">
+<div class="flex border-b border-slate-700">
+<button class="flex-1 py-2 text-sm font-semibold bg-slate-800 text-sky-400 border-b-2 border-sky-400">Assessment</button>
+<button class="flex-1 py-2 text-sm font-semibold text-slate-400 hover:text-slate-200" onclick="alert('ฟังก์ชันดูประวัติย้อนหลังอยู่ระหว่างพัฒนา')">History</button>
+</div>
+
+<div class="p-4 overflow-y-auto custom-scrollbar flex-grow">
+<!-- Body SVG -->
+<div class="relative w-full h-40 bg-slate-800/50 rounded-lg flex items-center justify-center mb-4 border border-slate-700">
+<svg class="h-full py-2" viewBox="0 0 100 200">
+<!-- Head -->
+<circle cx="50" cy="20" r="12" fill="#94a3b8" class="body-part" id="part-head"/>
+<!-- Torso -->
+<rect x="35" y="34" width="30" height="50" rx="5" fill="#94a3b8" class="body-part" id="part-torso"/>
+<!-- Arms -->
+<rect x="18" y="38" width="12" height="45" rx="5" fill="#94a3b8" class="body-part" id="part-arm-l"/>
+<rect x="70" y="38" width="12" height="45" rx="5" fill="#94a3b8" class="body-part" id="part-arm-r"/>
+<!-- Legs -->
+<rect x="37" y="86" width="12" height="60" rx="5" fill="#94a3b8" class="body-part" id="part-leg-l"/>
+<rect x="51" y="86" width="12" height="60" rx="5" fill="#94a3b8" class="body-part" id="part-leg-r"/>
+<!-- Spine -->
+<line x1="50" y1="34" x2="50" y2="84" stroke="#475569" stroke-width="4" class="body-part" id="part-spine"/>
+<!-- Joints/Hips -->
+<circle cx="43" cy="85" r="4" fill="#cbd5e1" class="body-part" id="part-hip-l"/>
+<circle cx="57" cy="85" r="4" fill="#cbd5e1" class="body-part" id="part-hip-r"/>
+<circle cx="43" cy="116" r="4" fill="#cbd5e1" class="body-part" id="part-knee-l"/>
+<circle cx="57" cy="116" r="4" fill="#cbd5e1" class="body-part" id="part-knee-r"/>
+</svg>
+<div class="absolute bottom-2 right-2 text-[10px] bg-slate-900/80 px-2 py-1 rounded text-slate-300" id="affectedAreaText">Area</div>
+</div>
+
+<!-- Vitals -->
+<h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Vital Signs</h3>
+<div class="grid grid-cols-2 gap-2 mb-4">
+<div class="bg-slate-800 p-2 rounded flex items-center justify-between border-l-2 border-slate-600" id="vs-bp-card">
+<span class="text-xs text-slate-400">BP</span>
+<span class="font-mono font-bold text-sm" id="vs-bp">120/80</span>
+</div>
+<div class="bg-slate-800 p-2 rounded flex items-center justify-between border-l-2 border-slate-600" id="vs-hr-card">
+<span class="text-xs text-slate-400">HR</span>
+<span class="font-mono font-bold text-sm" id="vs-hr">80</span>
+</div>
+<div class="bg-slate-800 p-2 rounded flex items-center justify-between border-l-2 border-slate-600" id="vs-rr-card">
+<span class="text-xs text-slate-400">RR</span>
+<span class="font-mono font-bold text-sm" id="vs-rr">18</span>
+</div>
+<div class="bg-slate-800 p-2 rounded flex items-center justify-between border-l-2 border-slate-600" id="vs-spo2-card">
+<span class="text-xs text-slate-400">SpO2</span>
+<span class="font-mono font-bold text-sm" id="vs-spo2">98%</span>
+</div>
+</div>
+
+<!-- 6Ps Neurovascular -->
+<div class="flex justify-between items-center mb-2">
+<h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Neurovascular (6P's)</h3>
+<span class="text-xs bg-slate-800 px-2 py-0.5 rounded text-sky-300">Pain: <span id="vs-pain" class="font-bold">0</span>/10</span>
+</div>
+<div class="grid grid-cols-2 gap-2 text-xs">
+<div class="bg-slate-800/50 p-2 rounded border border-slate-700 flex justify-between" id="nv-pallor">
+<span class="text-slate-400">Pallor:</span> <span class="font-medium text-white val">Normal</span>
+</div>
+<div class="bg-slate-800/50 p-2 rounded border border-slate-700 flex justify-between" id="nv-pulse">
+<span class="text-slate-400">Pulse:</span> <span class="font-medium text-white val">Palpable</span>
+</div>
+<div class="bg-slate-800/50 p-2 rounded border border-slate-700 flex justify-between" id="nv-pares">
+<span class="text-slate-400">Paresthesia:</span> <span class="font-medium text-white val">None</span>
+</div>
+<div class="bg-slate-800/50 p-2 rounded border border-slate-700 flex justify-between" id="nv-para">
+<span class="text-slate-400">Paralysis:</span> <span class="font-medium text-white val">None</span>
+</div>
+<div class="bg-slate-800/50 p-2 rounded border border-slate-700 flex justify-between col-span-2" id="nv-poik">
+<span class="text-slate-400">Poikilothermia:</span> <span class="font-medium text-white val">Warm</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Right Panel: Scenario & Options -->
+<div class="w-full md:w-2/3 flex flex-col h-full">
+
+<!-- Timer Bar -->
+<div class="w-full bg-slate-800 h-2 rounded-full mb-4 overflow-hidden relative">
+<div id="timeBar" class="bg-sky-500 h-full progress-bar-inner w-full"></div>
+</div>
+
+<!-- Scenario Card -->
+<div class="glass-panel p-6 mb-4 flex-grow-0 relative">
+<div class="absolute top-0 right-0 px-4 py-1 bg-slate-800 rounded-bl-lg text-xs font-mono text-slate-400 border-b border-l border-slate-700">
+Item <span id="itemBadge">1/20</span> • <span id="diffBadge" class="text-sky-400">Medium</span>
+</div>
+<h2 class="text-xl font-bold mb-3 text-white flex items-center gap-2">
+<i class="fa-solid fa-file-medical text-sky-400"></i> สถานการณ์
+</h2>
+<p id="scenarioText" class="text-lg leading-relaxed text-slate-200 border-l-4 border-sky-500 pl-4 py-1 bg-slate-800/30 rounded-r-lg">
+กำลังโหลดข้อมูลผู้ป่วย...
+</p>
+</div>
+
+<!-- Options Grid (Exactly 4) -->
+<div class="flex-grow flex flex-col">
+<h3 class="text-sm font-bold text-slate-400 mb-3 uppercase tracking-wider">Clinical Action (Choose 1)</h3>
+<div id="optionsContainer" class="grid grid-cols-1 gap-3 w-full">
+<!-- Options generated by JS -->
+</div>
+</div>
+
+</div>
+</div>
+
+<!-- SCREEN: Game Over / Results -->
+<div id="screen-result" class="hidden w-full max-w-2xl animate-fade-in text-center">
+<div class="glass-panel p-10 relative overflow-hidden">
+<div id="resultBg" class="absolute inset-0 opacity-10 pointer-events-none"></div>
+
+<div id="resultIcon" class="text-6xl mb-4">🏆</div>
+<h2 id="resultTitle" class="text-3xl font-bold mb-2 text-white">ประเมินผลการปฏิบัติงาน</h2>
+<p id="resultSubtitle" class="text-slate-300 mb-8">คุณได้ทำหน้าที่พยาบาลออร์โธปิดิกส์เสร็จสิ้น</p>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+<div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+<p class="text-xs text-slate-400 mb-1">SCORE</p>
+<p id="resScore" class="text-2xl font-bold text-sky-400">0</p>
+</div>
+<div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+<p class="text-xs text-slate-400 mb-1">ACCURACY</p>
+<p id="resAcc" class="text-2xl font-bold text-emerald-400">0%</p>
+</div>
+<div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+<p class="text-xs text-slate-400 mb-1">PATIENT HP</p>
+<p id="resHp" class="text-2xl font-bold text-rose-400">0%</p>
+</div>
+<div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+<p class="text-xs text-slate-400 mb-1">LEVEL</p>
+<p id="resLevel" class="text-lg font-bold text-white mt-1 capitalize">Amateur</p>
+</div>
+</div>
+
+<div class="bg-slate-900/50 rounded-xl p-5 mb-8 text-left border border-slate-700">
+<h3 class="font-bold text-slate-200 mb-2 border-b border-slate-700 pb-2">Feedback summary:</h3>
+<p id="resFeedback" class="text-sm text-slate-300 leading-relaxed"></p>
+</div>
+
+<div class="flex flex-col sm:flex-row gap-4 justify-center">
+<button onclick="showScreen('screen-menu')" class="px-8 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 font-bold transition-colors">
+กลับเมนูหลัก
+</button>
+<button onclick="showScreen('screen-leaderboard'); renderLeaderboard();" class="px-8 py-3 rounded-lg bg-gradient-to-r from-sky-500 to-teal-500 hover:from-sky-400 hover:to-teal-400 font-bold shadow-lg shadow-sky-500/20 transition-all text-white">
+ดู Leaderboard
+</button>
+</div>
+</div>
+</div>
+
+<!-- SCREEN: Leaderboard -->
+<div id="screen-leaderboard" class="hidden w-full max-w-4xl animate-fade-in">
+<div class="glass-panel p-8 text-center relative overflow-hidden">
+<button onclick="showScreen('screen-menu')" class="absolute top-4 left-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-lg transition-colors">
+<i class="fa-solid fa-arrow-left"></i> เมนูหลัก
+</button>
+
+<h2 class="text-3xl font-bold mb-2 mt-4 md:mt-0 text-white"><i class="fa-solid fa-trophy text-yellow-500"></i> Hall of Fame</h2>
+<p class="text-slate-400 mb-8">ทำเนียบพยาบาลผู้เชี่ยวชาญ (Top 20)</p>
+
+<div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900/50">
+<table class="w-full text-left text-sm text-slate-300">
+<thead class="text-xs text-slate-400 uppercase bg-slate-800">
+<tr>
+<th scope="col" class="px-6 py-4 text-center">Rank</th>
+<th scope="col" class="px-6 py-4">Name</th>
+<th scope="col" class="px-6 py-4 text-right">Score</th>
+<th scope="col" class="px-6 py-4 text-center">Accuracy</th>
+<th scope="col" class="px-6 py-4 text-center">Level</th>
+<th scope="col" class="px-6 py-4">Date</th>
+</tr>
+</thead>
+<tbody id="lbTableBody">
+<!-- JS Inject -->
+</tbody>
+</table>
+</div>
+</div>
+</div>
+
+</main>
+
+<!-- Feedback Modal (Overlay) -->
+<div id="feedbackModal" class="fixed inset-0 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300 bg-slate-900/60">
+<div id="feedbackCard" class="bg-slate-800 border border-slate-600 rounded-2xl p-6 max-w-md w-11/12 shadow-2xl transform scale-95 transition-transform duration-300">
+<div class="flex items-start gap-4">
+<div id="feedbackIcon" class="text-4xl mt-1"></div>
+<div class="flex-grow">
+<h3 id="feedbackTitle" class="text-xl font-bold mb-2"></h3>
+<p id="feedbackText" class="text-sm text-slate-300 leading-relaxed mb-4"></p>
+<div class="flex justify-between items-center text-sm font-bold bg-slate-900/50 rounded-lg p-2">
+<span id="feedbackHp" class=""></span>
+<span id="feedbackPts" class=""></span>
+</div>
+</div>
+</div>
+<button onclick="closeFeedback()" class="mt-4 w-full py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold transition-colors">
+ไปข้อต่อไป <i class="fa-solid fa-arrow-right ml-1"></i>
+</button>
+</div>
+</div>
+
+<script>
+/**
+* QUESTION BANK (25 Items)
+* Adaptive Design: 8 Easy, 9 Medium, 8 Hard
+* Format ensures EXACTLY 4 choices per question.
+*/
+const questionBank = [
+// --- EASY (8 Items) ---
+{
+id: "e1", diff: "easy",
+patient: { name: "เด็กชายวิน", age: "12 ปี", dx: "Closed Fx Radius", hx: "ล้มขณะเตะฟุตบอล ใส่ Short arm cast" },
+vitals: { bp: "110/70", hr: "88", rr: "20", spo2: "99", pain: "3" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-arm-l", areaText: "Left Forearm (Cast)",
+scenario: "ผู้ป่วยเด็กเพิ่งใส่เฝือกปูน (Plaster of Paris) ที่แขนซ้ายเสร็จใหม่ๆ เฝือกยังเปียกอยู่ ผู้ป่วยบ่นว่าเฝือกรู้สึกอุ่นๆ คุณควรให้คำแนะนำและดูแลอย่างไร?",
+options: [
+{ text: "ใช้ฝ่ามือประคองเฝือกขณะเคลื่อนย้าย และวางบนหมอนนิ่ม", correct: true, feedback: "ถูกต้อง! การใช้ฝ่ามือ (Palms) ประคองเฝือกที่ยังไม่แห้งช่วยป้องกันรอยบุบซึ่งอาจกดทับผิวหนัง และเฝือกปูนจะคายความร้อนขณะแห้งเป็นเรื่องปกติ", pts: 10, hp: 0 },
+{ text: "ใช้ปลายนิ้วจับเฝือกเพื่อลดพื้นที่สัมผัส และเป่าด้วยพัดลมลมร้อน", correct: false, feedback: "ผิด การใช้ปลายนิ้วจะทำให้เฝือกบุบเป็นรอยบุ๋ม และห้ามใช้ลมร้อนเป่าเพราะจะทำให้ข้างนอกแห้งแต่ข้างในชื้น", pts: -5, hp: -5 },
+{ text: "รายงานแพทย์ทันทีเพราะการที่เฝือกร้อนผิดปกติเป็นสัญญาณติดเชื้อ", correct: false, feedback: "ผิด เฝือก Plaster of Paris จะเกิดปฏิกิริยาคายความร้อน (Exothermic) ขณะแข็งตัว เป็นเรื่องปกติ", pts: -5, hp: -5 },
+{ text: "เอาผ้าห่มคลุมเฝือกไว้เพื่อรักษาอุณหภูมิไม่ให้ผู้ป่วยหนาว", correct: false, feedback: "ผิด การคลุมเฝือกเปียกจะขัดขวางการระเหยของน้ำ ทำให้เฝือกแห้งช้าลง", pts: -5, hp: -5 }
+]
+},
+{
+id: "e2", diff: "easy",
+patient: { name: "นางสาวฟ้า", age: "22 ปี", dx: "Ankle Sprain (Grade 2)", hx: "ข้อเท้าพลิกขณะใส่ส้นสูง" },
+vitals: { bp: "118/76", hr: "82", rr: "18", spo2: "100", pain: "5" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-leg-r", areaText: "Right Ankle",
+scenario: "ผู้ป่วยมีภาวะข้อเท้าพลิก (Sprain) บวมและปวดระดับ 5/10 มาที่ ER ภายใน 1 ชั่วโมงแรก การพยาบาลหลักที่เหมาะสมที่สุดคืออะไร?",
+options: [
+{ text: "ประคบน้ำแข็ง ยกข้อเท้าสูง และพันด้วย Elastic bandage", correct: true, feedback: "ถูกต้อง! ใช้หลัก RICE (Rest, Ice, Compression, Elevation) สำหรับการบาดเจ็บของเนื้อเยื่ออ่อนใน 24-48 ชม.แรก", pts: 10, hp: 0 },
+{ text: "ประคบร้อนทันทีเพื่อลดอาการปวดและคลายกล้ามเนื้อ", correct: false, feedback: "ผิด การประคบร้อนใน 24-48 ชม.แรก จะยิ่งทำให้หลอดเลือดขยายตัว เลือดออกและบวมมากขึ้น", pts: -10, hp: -10 },
+{ text: "ให้ผู้ป่วยลองเดินลงน้ำหนักเต็มที่เพื่อประเมินความรุนแรง", correct: false, feedback: "ผิด ควรให้พัก (Rest) การลงน้ำหนักอาจทำให้เอ็นฉีกขาดมากขึ้น", pts: -10, hp: -10 },
+{ text: "นวดคลึงบริเวณข้อเท้าเบาๆ เพื่อให้เลือดไหลเวียนดีขึ้น", correct: false, feedback: "ผิด ห้ามนวดบริเวณที่เพิ่งบาดเจ็บเฉียบพลัน เพราะจะเพิ่มการอักเสบและบวม", pts: -5, hp: -5 }
+]
+},
+{
+id: "e3", diff: "easy",
+patient: { name: "นางสมศรี", age: "65 ปี", dx: "Osteoporosis", hx: "มาตรวจตามนัด ตรวจ Bone mineral density (T-score -2.8)" },
+vitals: { bp: "130/80", hr: "76", rr: "18", spo2: "98", pain: "0" },
+nv: { pallor: "Normal", pulse: "Normal", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-spine", areaText: "Systemic (Bones)",
+scenario: "ผู้ป่วยได้รับการวินิจฉัยว่าเป็นโรคกระดูกพรุน (Osteoporosis) พยาบาลควรให้คำแนะนำเรื่องการปฏิบัติตัวอย่างไรที่ถูกต้องที่สุด?",
+options: [
+{ text: "แนะนำให้ออกกำลังกายแบบลงน้ำหนัก (Weight-bearing exercises) เช่น การเดิน", correct: true, feedback: "ถูกต้อง! Weight-bearing exercise ช่วยกระตุ้นการสร้างมวลกระดูก ป้องกันกระดูกบางลง", pts: 10, hp: 0 },
+{ text: "แนะนำให้ออกกำลังกายโดยการว่ายน้ำเป็นหลักเพื่อลดแรงกระแทก", correct: false, feedback: "ผิด ว่ายน้ำดีต่อข้อต่อ แต่ไม่ใช่ Weight-bearing จึงไม่ช่วยเพิ่มมวลกระดูกมากนัก", pts: -5, hp: -5 },
+{ text: "ให้งดอาหารที่มีวิตามินดีสูงเพราะจะทำให้แคลเซียมเกาะตามหลอดเลือด", correct: false, feedback: "ผิด วิตามินดีจำเป็นอย่างมากในการช่วยดูดซึมแคลเซียมเข้าสู่กระดูก", pts: -5, hp: -5 },
+{ text: "แนะนำให้นอนพักบนเตียงให้มากที่สุดเพื่อป้องกันการหกล้มกระดูกหัก", correct: false, feedback: "ผิด การไม่เคลื่อนไหว (Immobility) ยิ่งทำให้กระดูกบางลงอย่างรวดเร็ว", pts: -10, hp: -10 }
+]
+},
+{
+id: "e4", diff: "easy",
+patient: { name: "นายเอก", age: "30 ปี", dx: "Left Tibia Fx (Cast)", hx: "ใส่ Long leg cast มา 1 สัปดาห์" },
+vitals: { bp: "120/75", hr: "80", rr: "18", spo2: "99", pain: "2" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-leg-l", areaText: "Left Leg (Cast)",
+scenario: "ผู้ป่วยที่ใส่เฝือกขาซ้ายบ่นว่าคันบริเวณผิวหนังภายใต้เฝือกมาก พยาบาลควรให้คำแนะนำอย่างไร?",
+options: [
+{ text: "ใช้ไดร์เป่าผมเปิดลมเย็น (Cool setting) เป่าเข้าไปในเฝือก", correct: true, feedback: "ถูกต้อง! ลมเย็นช่วยบรรเทาอาการคันได้โดยไม่ทำให้ผิวหนังบาดเจ็บ", pts: 10, hp: 0 },
+{ text: "ใช้ไม้บรรทัดหรือไม้แขวนเสื้อสอดเข้าไปเกาเบาๆ", correct: false, feedback: "ผิด ห้ามสอดวัตถุใดๆ เข้าไปในเฝือก เพราะอาจทำให้ผิวหนังถลอกและติดเชื้อได้ง่าย", pts: -10, hp: -10 },
+{ text: "ทาแป้งฝุ่นหรือโลชั่นบริเวณขอบเฝือกให้ไหลเข้าไปด้านใน", correct: false, feedback: "ผิด แป้งหรือโลชั่นจะจับตัวเป็นก้อนเมื่อเจอเหงื่อ ทำให้เกิดการระคายเคืองและติดเชื้อ", pts: -5, hp: -5 },
+{ text: "ใช้กระบอกฉีดยาฉีดน้ำเกลือเข้าไปล้างบริเวณที่คัน", correct: false, feedback: "ผิด ห้ามทำให้เฝือกเปียกชื้น (ยกเว้นเฝือกไฟเบอร์ที่ออกแบบมาเฉพาะ) เพราะจะทำให้เฝือกเปื่อยและผิวหนังเปื่อย", pts: -10, hp: -10 }
+]
+},
+{
+id: "e5", diff: "easy",
+patient: { name: "นายทองดี", age: "50 ปี", dx: "Right Femur Fx", hx: "รอผ่าตัด ใส่ Buck's traction 5 kg" },
+vitals: { bp: "135/85", hr: "88", rr: "20", spo2: "97", pain: "4" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-leg-r", areaText: "Right Leg (Traction)",
+scenario: "ผู้ป่วยกำลังดึงถ่วงน้ำหนักผิวหนัง (Buck's Traction) ที่ขาขวา คุณสังเกตเห็นว่าลูกตุ้มน้ำหนัก (Weights) วางพักอยู่บนพื้น คุณควรทำอย่างไร?",
+options: [
+{ text: "ปรับตำแหน่งผู้ป่วยบนเตียงหรือเชือกให้ลูกตุ้มแขวนลอยอิสระ", correct: true, feedback: "ถูกต้อง! หลักการสำคัญของ Traction คือน้ำหนักต้องแขวนลอยอิสระ (Hang freely) ไม่แตะพื้นหรือขอบเตียง เพื่อให้มีแรงดึงต่อเนื่อง", pts: 10, hp: 0 },
+{ text: "ปล่อยไว้ตามเดิมเพราะผู้ป่วยบอกว่าท่านี้ทำให้ปวดน้อยลง", correct: false, feedback: "ผิด ถ้าน้ำหนักแตะพื้น แรงดึงจะเป็นศูนย์ ทำให้กล้ามเนื้อหดเกร็งและกระดูกเกยกัน เจ็บปวดมากขึ้น", pts: -10, hp: -10 },
+{ text: "ปลดน้ำหนักออกชั่วคราวแล้วจัดท่าผู้ป่วยใหม่", correct: false, feedback: "ผิด ห้ามปลดตุ้มน้ำหนักออกเด็ดขาดโดยไม่มีคำสั่งแพทย์ เพราะจะทำลายแรงดึง", pts: -10, hp: -10 },
+{ text: "เพิ่มน้ำหนักเข้าไปอีก 2 kg เพื่อชดเชยน้ำหนักที่ตกพื้น", correct: false, feedback: "ผิด พยาบาลไม่สามารถเพิ่มลดน้ำหนัก traction เองได้ ต้องเป็นไปตามแผนการรักษา", pts: -5, hp: -5 }
+]
+},
+{
+id: "e6", diff: "easy",
+patient: { name: "นางมะลิ", age: "72 ปี", dx: "Post THR (Right)", hx: "ผ่าตัดเปลี่ยนข้อสะโพกขวา วันที่ 1" },
+vitals: { bp: "128/80", hr: "84", rr: "18", spo2: "98", pain: "5" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-hip-r", areaText: "Right Hip (Post-op)",
+scenario: "ผู้ป่วยหลังผ่าตัดเปลี่ยนข้อสะโพกขวา (Total Hip Replacement) วันแรก กำลังจะพลิกตะแคงตัว พยาบาลควรจัดท่าอย่างไรเพื่อป้องกันข้อสะโพกหลุด?",
+options: [
+{ text: "สอดหมอนสามเหลี่ยม (Abduction pillow) ไว้ระหว่างขาทั้งสองข้าง", correct: true, feedback: "ถูกต้อง! Abduction pillow ช่วยป้องกันขาหุบเข้าหากัน (Adduction) ซึ่งเป็นท่าที่ทำให้ข้อสะโพกเทียมหลุดง่ายที่สุด", pts: 10, hp: 0 },
+{ text: "ให้ผู้ป่วยไขว่ห้างก่อนพลิกตัวเพื่อให้ข้อสะโพกล็อก", correct: false, feedback: "ผิด อันตรายมาก! การไขว่ห้าง (Adduction + Internal rotation) เป็นข้อห้ามเด็ดขาดเพราะทำให้ข้อสะโพกหลุดทันที", pts: -15, hp: -20 },
+{ text: "จัดให้นอนตะแคงทับด้านขวา (ด้านที่ผ่าตัด) เพื่อกดห้ามเลือด", correct: false, feedback: "ผิด ห้ามนอนตะแคงทับด้านที่ทำผ่าตัดในระยะแรก ควรนอนหงายหรือตะแคงด้านดี", pts: -10, hp: -10 },
+{ text: "ยกหัวเตียงสูง 90 องศาให้ผู้ป่วยนั่งตัวตรงก่อนพลิก", correct: false, feedback: "ผิด ห้ามงอข้อสะโพก (Flexion) มากกว่า 90 องศา เพราะข้อเทียมอาจหลุดไปทางด้านหลัง", pts: -10, hp: -10 }
+]
+},
+{
+id: "e7", diff: "easy",
+patient: { name: "นายบอย", age: "25 ปี", dx: "Left Femur Fx", hx: "กำลังเตรียมเดินด้วยไม้ค้ำยัน (Crutches)" },
+vitals: { bp: "115/75", hr: "78", rr: "16", spo2: "100", pain: "2" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-leg-l", areaText: "Left Leg",
+scenario: "พยาบาลกำลังสอนผู้ป่วยใช้ไม้ค้ำยัน (Crutches) การปรับระดับความสูงของไม้ค้ำยันที่ถูกต้องคือข้อใด?",
+options: [
+{ text: "ระยะห่างระหว่างรักแร้กับยอดไม้ค้ำยันประมาณ 2-3 นิ้วสอด", correct: true, feedback: "ถูกต้อง! ต้องเหลือช่องว่างใต้รักแร้ 2-3 นิ้วสอด (ประมาณ 3-5 ซม.) เพื่อป้องกันการกดทับเส้นประสาท (Brachial plexus)", pts: 10, hp: 0 },
+{ text: "ให้ยอดไม้ค้ำยันแนบชิดติดกับรักแร้พอดีเพื่อช่วยรับน้ำหนัก", correct: false, feedback: "ผิด หากยอดไม้ค้ำยันชิดรักแร้และรับน้ำหนัก จะทำให้เส้นประสาท Brachial plexus เสียหาย (Crutch paralysis)", pts: -10, hp: -10 },
+{ text: "ปรับให้ข้อศอกเหยียดตึง 180 องศาเวลาจับด้ามจับ", correct: false, feedback: "ผิด ข้อศอกควรงอเล็กน้อยประมาณ 20-30 องศา เพื่อให้มีแรงผลักและไม่เกร็งเกินไป", pts: -5, hp: -5 },
+{ text: "ปรับระดับตามความสูงของผู้ป่วยหารสอง", correct: false, feedback: "ผิด ไม่ใช่สูตรการวัดที่ถูกต้อง การวัดต้องคำนึงถึงสรีระจริงขณะยืน", pts: -5, hp: -5 }
+]
+},
+{
+id: "e8", diff: "easy",
+patient: { name: "ด.ช. กล้า", age: "10 ปี", dx: "Clavicle Fx", hx: "ตกต้นไม้ กระดูกไหปลาร้าหัก ใส่ Figure-of-eight bandage" },
+vitals: { bp: "100/60", hr: "90", rr: "20", spo2: "99", pain: "4" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-torso", areaText: "Right Clavicle",
+scenario: "ผู้ป่วยกระดูกไหปลาร้าหัก ใส่สายรัดรูปเลขแปด (Figure-of-eight bandage) พยาบาลควรประเมินสิ่งใดเป็นสำคัญ?",
+options: [
+{ text: "ประเมินสีผิว อุณหภูมิ และชีพจรที่แขนทั้งสองข้าง", correct: true, feedback: "ถูกต้อง! สายรัดบริเวณรักแร้อาจกดทับหลอดเลือดและเส้นประสาทที่ไปเลี้ยงแขน จึงต้องประเมิน Neurovascular status", pts: 10, hp: 0 },
+{ text: "ประเมินการขยายตัวของทรวงอกและเสียงปอดอย่างเข้มงวด", correct: false, feedback: "ผิด แม้อยู่ใกล้ทรวงอก แต่ปัญหาหลักคือการกดทับที่รักแร้ ไม่ใช่ปอด", pts: -5, hp: 0 },
+{ text: "สั่งให้ผู้ป่วยห้ามขยับนิ้วมือและข้อมือเด็ดขาด", correct: false, feedback: "ผิด ผู้ป่วยสามารถและควรขยับนิ้ว ข้อมือ ข้อศอก เพื่อป้องกันข้อติด", pts: -5, hp: -5 },
+{ text: "คลายสายรัดเวลานอนหลับเพื่อให้หายใจสะดวก", correct: false, feedback: "ผิด ห้ามคลายสายรัดเอง เพราะจะทำให้กระดูกเคลื่อน", pts: -10, hp: -10 }
+]
+},
+
+// --- MEDIUM (9 Items) ---
+{
+id: "m1", diff: "medium",
+patient: { name: "นางอุษา", age: "55 ปี", dx: "Rheumatoid Arthritis", hx: "ข้ออักเสบรูมาตอยด์กำเริบ" },
+vitals: { bp: "125/80", hr: "88", rr: "18", spo2: "98", pain: "6" },
+nv: { pallor: "Normal", pulse: "Normal", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-arm-r", areaText: "Hands & Wrists",
+scenario: "ผู้ป่วยโรคข้ออักเสบรูมาตอยด์ (RA) บ่นว่ามีอาการข้อฝืดตึงมากในตอนเช้า (Morning stiffness) นานกว่า 1 ชั่วโมง การพยาบาลใดช่วยบรรเทาอาการได้ดีที่สุด?",
+options: [
+{ text: "แนะนำให้อาบน้ำอุ่นหรือแช่มือในน้ำอุ่นหลังตื่นนอน", correct: true, feedback: "ถูกต้อง! ความร้อน (Heat therapy) เช่น น้ำอุ่น ช่วยเพิ่มการไหลเวียนเลือดและลดความฝืดตึงของข้อในตอนเช้าได้ดีมากสำหรับ RA", pts: 15, hp: 5 },
+{ text: "ใช้ถุงน้ำแข็งประคบที่ข้อทันทีหลังตื่นนอน", correct: false, feedback: "ผิด ความเย็นใช้ลดบวมอักเสบเฉียบพลัน แต่ความร้อนเหมาะกว่าสำหรับอาการฝืดตึงตอนเช้า", pts: -5, hp: 0 },
+{ text: "ให้ทำกิจกรรมที่ต้องใช้แรงนิ้วมือหนักๆ ทันทีเพื่อคลายเส้น", correct: false, feedback: "ผิด การใช้งานหนักขณะข้อฝืดจะทำให้เจ็บปวดและข้อถูกทำลายมากขึ้น", pts: -10, hp: -10 },
+{ text: "งดการเคลื่อนไหวข้อตลอดช่วงเช้า", correct: false, feedback: "ผิด การไม่เคลื่อนไหวยิ่งทำให้ข้อติด ควรเคลื่อนไหวเบาๆ หลังได้รับความร้อน", pts: -5, hp: -5 }
+]
+},
+{
+id: "m2", diff: "medium",
+patient: { name: "นายอำนาจ", age: "40 ปี", dx: "Post BKA (Left)", hx: "ตัดขาระดับใต้เข่าจาก DM foot เมื่อ 2 วันก่อน" },
+vitals: { bp: "130/85", hr: "82", rr: "18", spo2: "99", pain: "7" },
+nv: { pallor: "N/A", pulse: "N/A", paresthesia: "N/A", paralysis: "N/A", poik: "N/A" },
+bodyPart: "part-leg-l", areaText: "Left Leg (Amputated)",
+scenario: "ผู้ป่วยหลังตัดขาซ้ายระดับใต้เข่า (BKA) บ่นปวดบริเวณนิ้วเท้าซ้ายที่ถูกตัดไปแล้ว (Phantom limb pain) 7/10 พยาบาลควรตอบสนองอย่างไร?",
+options: [
+{ text: "ยอมรับว่าอาการปวดนั้นมีจริง และดูแลให้ยาแก้ปวดตามแผนการรักษา", correct: true, feedback: "ถูกต้อง! Phantom limb pain เป็นความเจ็บปวดที่เกิดขึ้นจริงจากเส้นประสาทที่ถูกตัด ต้องรักษาด้วยยา (เช่น Gabapentin, Opioids) ไม่ใช่เรื่องคิดไปเอง", pts: 15, hp: 5 },
+{ text: "อธิบายว่าขาซ้ายไม่มีแล้ว อาการปวดเกิดจากคิดไปเอง", correct: false, feedback: "ผิด เป็นการไม่ใส่ใจความรู้สึกผู้ป่วย (Invalidate) อาการปวดนี้มีพยาธิสภาพจริง", pts: -15, hp: -10 },
+{ text: "นวดบริเวณตอขาอย่างแรงเพื่อกระตุ้นปลายประสาทใหม่", correct: false, feedback: "ผิด การนวดแรงๆ ที่ตอขาแผลใหม่อาจทำให้แผลปริหรือเลือดออกได้", pts: -10, hp: -10 },
+{ text: "แนะนำให้ทำสมาธิอย่างเดียวเพราะยาแก้ปวดจะไม่ได้ผล", correct: false, feedback: "ผิด ยาแก้ปวดโดยเฉพาะกลุ่ม Neuropathic pain drugs มีประสิทธิภาพในการรักษา", pts: -5, hp: -5 }
+]
+},
+{
+id: "m3", diff: "medium",
+patient: { name: "ลุงชัย", age: "60 ปี", dx: "Gouty Arthritis", hx: "ข้อหัวแม่เท้าขวาบวมแดงร้อน ปวดมาก" },
+vitals: { bp: "140/90", hr: "90", rr: "20", spo2: "98", pain: "8" },
+nv: { pallor: "Redness", pulse: "Bounding", paresthesia: "None", paralysis: "None", poik: "Hot" },
+bodyPart: "part-leg-r", areaText: "Right Great Toe",
+scenario: "ผู้ป่วยโรคเกาต์มีอาการข้ออักเสบเฉียบพลัน (Acute attack) ที่หัวแม่เท้าขวา ปวด 8/10 การพยาบาลใดเหมาะสมที่สุดในระยะนี้?",
+options: [
+{ text: "ให้พักข้อ ยกขาสูง ประคบเย็น และหลีกเลี่ยงการให้ผ้าห่มสัมผัสข้อ", correct: true, feedback: "ถูกต้อง! ในระยะเฉียบพลันต้องพักข้อ (Bed rest) ประคบเย็นเพื่อลดอักเสบ และใช้ bed cradle พยุงผ้าห่มไม่ให้โดนข้อที่เจ็บ", pts: 15, hp: 5 },
+{ text: "ให้ผู้ป่วยเดินรอบเตียงเพื่อลดการสะสมของกรดยูริก", correct: false, feedback: "ผิด การเดินลงน้ำหนักขณะข้ออักเสบเฉียบพลันจะทำให้เจ็บปวดทรมานและอักเสบเพิ่ม", pts: -15, hp: -10 },
+{ text: "ประคบร้อนที่ข้อเท้าเพื่อให้กรดยูริกละลายเร็วขึ้น", correct: false, feedback: "ผิด ความร้อนจะเพิ่มการไหลเวียนเลือด ทำให้ข้อที่อักเสบอยู่แล้วยิ่งบวมแดงและปวดมากขึ้น", pts: -10, hp: -10 },
+{ text: "แนะนำให้ดื่มน้ำน้อยลงเพื่อลดอาการบวมที่เท้า", correct: false, feedback: "ผิด ควรดื่มน้ำมากๆ (2-3 ลิตร/วัน) เพื่อช่วยขับกรดยูริกออกทางปัสสาวะ", pts: -10, hp: -10 }
+]
+},
+{
+id: "m4", diff: "medium",
+patient: { name: "นางนก", age: "68 ปี", dx: "Post TKR (Left)", hx: "ผ่าตัดเปลี่ยนข้อเข่าซ้าย วันที่ 2" },
+vitals: { bp: "125/75", hr: "80", rr: "18", spo2: "97", pain: "4" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-knee-l", areaText: "Left Knee",
+scenario: "พยาบาลกำลังดูแลผู้ป่วยที่ใช้เครื่อง Continuous Passive Motion (CPM) หลังผ่าตัด TKR ข้อใดคือการดูแลที่ถูกต้อง?",
+options: [
+{ text: "จัดให้ข้อเข่าของผู้ป่วยอยู่ตรงกับจุดหมุน (Hinge) ของเครื่อง CPM พอดี", correct: true, feedback: "ถูกต้อง! การวางตำแหน่งข้อเข่าให้ตรงกับแกนพับของเครื่องเป็นสิ่งสำคัญที่สุด เพื่อให้งอเข่าได้องศาที่ถูกต้องและไม่เกิดแรงตึงผิดปกติ", pts: 15, hp: 5 },
+{ text: "เปิดเครื่องให้ทำงานต่อเนื่อง 24 ชั่วโมงเพื่อป้องกันข้อติดเด็ดขาด", correct: false, feedback: "ผิด เครื่อง CPM มักใช้เป็นช่วงๆ (เช่น ครั้งละ 1-2 ชม. วันละ 3-4 ครั้ง) ไม่ใช้ตลอด 24 ชม.", pts: -5, hp: -5 },
+{ text: "ปรับเพิ่มองศาการงอเข่าให้สูงสุดเท่าที่เครื่องทำได้ทันที", correct: false, feedback: "ผิด องศาการงอ (Flexion) ต้องค่อยๆ เพิ่มขึ้นตามคำสั่งแพทย์ (เช่น วันละ 5-10 องศา)", pts: -10, hp: -10 },
+{ text: "วางเครื่อง CPM ไว้บนที่นอนนิ่มๆ เพื่อลดการเสียดสี", correct: false, feedback: "ผิด เครื่อง CPM ต้องวางบนพื้นผิวที่แข็งหรือมีแผ่นรองที่มั่นคงเพื่อไม่ให้เครื่องจม", pts: -5, hp: -5 }
+]
+},
+{
+id: "m5", diff: "medium",
+patient: { name: "นายพล", age: "35 ปี", dx: "Open Fx Tibia", hx: "ใส่ External Fixator มา 3 วัน มีไข้ต่ำๆ" },
+vitals: { bp: "120/80", hr: "92", rr: "20", spo2: "98", pain: "5" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-leg-l", areaText: "Left Tibia (Ex-Fix)",
+scenario: "ผู้ป่วยที่ใส่โครงโลหะยึดกระดูกภายนอก (External Fixator) บริเวณขามีน้ำเหลืองใสซึมเล็กน้อยรอบๆ บริเวณเหล็กเสียบ (Pin site) พยาบาลควรดูแลอย่างไร?",
+options: [
+{ text: "ทำความสะอาด Pin site ด้วย Chlorhexidine หรือ Normal saline ตามโปรโตคอล", correct: true, feedback: "ถูกต้อง! การทำความสะอาด pin site เป็นสิ่งสำคัญเพื่อป้องกัน Osteomyelitis น้ำเหลืองใสซึมเล็กน้อยในช่วงแรกถือเป็นเรื่องปกติ (Serous drainage)", pts: 15, hp: 5 },
+{ text: "ใช้มือบิดหมุนแกนเหล็ก (Pin) เล็กน้อยเพื่อป้องกันพังผืดเกาะติด", correct: false, feedback: "ผิด ห้ามหมุนหรือขยับแกนเหล็กเด็ดขาด เพราะจะทำให้ติดเชื้อและกระดูกไม่ติด", pts: -15, hp: -15 },
+{ text: "ทาครีมแก้อักเสบสเตียรอยด์รอบๆ รูเหล็กเพื่อลดรอยแดง", correct: false, feedback: "ผิด ห้ามทาครีมหรือขี้ผึ้งรอบ pin site เพราะจะกักเก็บความชื้นและแบคทีเรีย", pts: -10, hp: -10 },
+{ text: "รายงานแพทย์ทันทีเพื่อถอดอุปกรณ์ออกเพราะเป็นสัญญาณติดเชื้อรุนแรง", correct: false, feedback: "ผิด น้ำเหลืองใส (Serous) เล็กน้อยไม่ใช่ข้อบ่งชี้ในการถอด Ex-fix ทันที", pts: -5, hp: 0 }
+]
+},
+{
+id: "m6", diff: "medium",
+patient: { name: "เด็กหญิงมาย", age: "14 ปี", dx: "Scoliosis", hx: "ผ่าตัด Spinal fusion Post-op Day 1" },
+vitals: { bp: "110/70", hr: "85", rr: "18", spo2: "99", pain: "6" },
+nv: { pallor: "Normal", pulse: "Normal", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-spine", areaText: "Spine (Thoracolumbar)",
+scenario: "ผู้ป่วยหลังผ่าตัดเชื่อมข้อกระดูกสันหลัง (Spinal Fusion) วันแรก ต้องการพลิกตัว พยาบาลควรใช้วิธีใดในการพลิกตัวผู้ป่วย?",
+options: [
+{ text: "ใช้วิธี Logrolling โดยใช้พยาบาล 2-3 คนพลิกตัวพร้อมกันทั้งตัวเหมือนท่อนไม้", correct: true, feedback: "ถูกต้อง! Logrolling คือการรักษาแนวของกระดูกสันหลังให้ตรงอยู่เสมอ ห้ามมีการบิดเอี้ยว (Twisting) ของกระดูกสันหลังเด็ดขาด", pts: 15, hp: 5 },
+{ text: "ให้ผู้ป่วยจับราวเตียงและดึงตัวพลิกตะแคงด้วยตนเอง", correct: false, feedback: "ผิด การดึงตัวพลิกเองจะทำให้กระดูกสันหลังบิดเอี้ยว แผลผ่าตัดและโลหะยึดอาจเสียหายได้", pts: -15, hp: -15 },
+{ text: "ยกเฉพาะส่วนสะโพกพลิกไปก่อน แล้วค่อยตามด้วยไหล่", correct: false, feedback: "ผิด นี่คือการบิดกระดูกสันหลัง (Twisting) เป็นข้อห้ามเด็ดขาดหลังผ่าตัด Spine", pts: -15, hp: -15 },
+{ text: "ใช้เครื่องยกผู้ป่วย (HoverMatt) ยกขึ้นให้นั่งก่อนแล้วค่อยจัดตะแคง", correct: false, feedback: "ผิด ไม่จำเป็นต้องลุกนั่งก่อน การพลิกตัวบนเตียงใช้ Logroll ปลอดภัยที่สุดใน Day 1", pts: -5, hp: -5 }
+]
+},
+{
+id: "m7", diff: "medium",
+patient: { name: "นายเก่ง", age: "28 ปี", dx: "Carpal Tunnel Syndrome", hx: "ชาบริเวณนิ้วโป้ง ชี้ กลาง โดยเฉพาะตอนกลางคืน" },
+vitals: { bp: "120/80", hr: "72", rr: "16", spo2: "100", pain: "2" },
+nv: { pallor: "Normal", pulse: "Normal", paresthesia: "Tingling in fingers", paralysis: "None", poik: "Warm" },
+bodyPart: "part-arm-r", areaText: "Right Wrist",
+scenario: "ผู้ป่วยมีอาการสงสัยกลุ่มอาการเส้นประสาทมีเดียนถูกกดทับที่ข้อมือ (Carpal Tunnel Syndrome) การทดสอบใดที่พยาบาลสามารถทำเพื่อประเมินเบื้องต้นได้?",
+options: [
+{ text: "Phalen's test (ให้งอข้อมือพับเข้าหากัน 90 องศา นาน 60 วินาที)", correct: true, feedback: "ถูกต้อง! Phalen's test หรือ Tinel's sign (เคาะที่ข้อมือ) เป็นการทดสอบเบื้องต้นสำหรับ CTS หากมีอาการชาปวดร้าวถือว่า Positive", pts: 15, hp: 0 },
+{ text: "Homan's sign (ให้กระดกข้อเท้าขึ้นเพื่อดูอาการปวดน่อง)", correct: false, feedback: "ผิด Homan's sign ใช้ประเมิน DVT ที่ขา ไม่เกี่ยวกับข้อมือ", pts: -10, hp: 0 },
+{ text: "Drawer test (จับหน้าแข้งดึงไปข้างหน้าและหลัง)", correct: false, feedback: "ผิด Drawer test ใช้ประเมินความมั่นคงของเอ็นไขว้หน้า/หลังที่ข้อเข่า (ACL/PCL)", pts: -10, hp: 0 },
+{ text: "Trendelenburg test (ให้ยืนขาเดียวเพื่อดูการตกของสะโพก)", correct: false, feedback: "ผิด Trendelenburg test ใช้ประเมินความแข็งแรงของกล้ามเนื้อสะโพก (Gluteus medius)", pts: -10, hp: 0 }
+]
+},
+{
+id: "m8", diff: "medium",
+patient: { name: "นางศรี", age: "62 ปี", dx: "Post TKR (Right)", hx: "ผ่าตัด Day 3 เตรียมตัวกลับบ้าน" },
+vitals: { bp: "130/80", hr: "78", rr: "18", spo2: "98", pain: "3" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-knee-r", areaText: "Right Knee",
+scenario: "ผู้ป่วยหลังผ่าตัด TKR เตรียมจำหน่ายกลับบ้าน พยาบาลควรให้คำแนะนำการปฏิบัติตัวอย่างไร?",
+options: [
+{ text: "เวลานั่งเก้าอี้ ให้วางเท้าแบนราบกับพื้น และหลีกเลี่ยงการนั่งยองๆ หรือคุกเข่า", correct: true, feedback: "ถูกต้อง! หลัง TKR ควรหลีกเลี่ยงท่าที่งอเข่ามากเกินไป เช่น นั่งยอง นั่งพับเพียบ คุกเข่า เพื่อป้องกันข้อเทียมเสื่อมหรือหลุด", pts: 15, hp: 5 },
+{ text: "เวลานอนให้เอาหมอนรองใต้ข้อเข่าขวาตลอดเวลาเพื่อลดปวด", correct: false, feedback: "ผิด ห้ามเอาหมอนรองใต้ข้อเข่า (Popliteal space) เพราะจะทำให้ข้อเข่ายึดติดในท่องอ (Flexion contracture)", pts: -10, hp: -10 },
+{ text: "งดการเดินขึ้นลงบันไดโดยเด็ดขาดในช่วง 3 เดือนแรก", correct: false, feedback: "ผิด สามารถเดินขึ้นลงบันไดได้โดยใช้เทคนิค 'ขึ้นด้วยขาดี ลงด้วยขาเจ็บ' (Up with the good, down with the bad)", pts: -5, hp: 0 },
+{ text: "สามารถกลับไปเล่นกีฬาที่มีการกระแทก เช่น เทนนิส แบดมินตัน ได้หลัง 1 เดือน", correct: false, feedback: "ผิด ควรหลีกเลี่ยง High-impact sports ตลอดชีวิต แนะนำ Low-impact เช่น ว่ายน้ำ ปั่นจักรยาน", pts: -10, hp: -5 }
+]
+},
+{
+id: "m9", diff: "medium",
+patient: { name: "นายสันติ", age: "45 ปี", dx: "Pelvic Fracture", hx: "ตกจากที่สูง 3 เมตร ใส่ Pelvic binder" },
+vitals: { bp: "90/60", hr: "110", rr: "24", spo2: "96", pain: "8" },
+nv: { pallor: "Pale", pulse: "Weak", paresthesia: "None", paralysis: "None", poik: "Cool" },
+bodyPart: "part-hip-l", areaText: "Pelvis",
+scenario: "ผู้ป่วยกระดูกเชิงกรานหัก (Pelvic Fracture) แรกรับ มีชีพจรเร็ว 110 ครั้ง/นาที ความดันเลือดเริ่มต่ำลง 90/60 mmHg ผิวซีด ภาวะแทรกซ้อนใดที่พยาบาลต้องเฝ้าระวังมากที่สุดในขณะนี้?",
+options: [
+{ text: "Hypovolemic shock จากเลือดออกในช่องเชิงกรานปริมาณมาก", correct: true, feedback: "ถูกต้อง! กระดูกเชิงกรานเป็นแหล่งที่มีหลอดเลือดใหญ่มากมาย หากหักอาจมีเลือดออกซ่อนเร้น (Internal bleeding) เป็นลิตร ทำให้เกิดช็อกเสียชีวิตได้อย่างรวดเร็ว", pts: 15, hp: 5 },
+{ text: "Fat Embolism Syndrome (FES) จากไขกระดูกหลุดเข้าหลอดเลือด", correct: false, feedback: "ผิด FES พบได้บ่อยใน Long bone (Femur) มากกว่า และอาการจะเด่นเรื่อง Hypoxemia + Petechiae ไม่ใช่ Shock ทันที", pts: -5, hp: -5 },
+{ text: "Deep Vein Thrombosis (DVT) จากการนอนติดเตียง", correct: false, feedback: "ผิด DVT เป็นภาวะแทรกซ้อนระยะยาว ไม่ทำให้ BP drop และ HR เร็วทันทีในระยะแรกรับ", pts: -5, hp: 0 },
+{ text: "Paralytic ileus จากเส้นประสาทลำไส้ถูกทำลาย", correct: false, feedback: "ผิด แม้จะพบได้ แต่ Hypovolemic shock เป็นภาวะฉุกเฉินคุกคามชีวิตที่ต้องระวังเป็นอันดับแรก", pts: -5, hp: -10 }
+]
+},
+
+// --- HARD (8 Items) ---
+{
+id: "h1", diff: "hard",
+patient: { name: "นายคมสัน", age: "24 ปี", dx: "Closed Fx Tibia", hx: "ใส่ Long leg cast มา 6 ชั่วโมง" },
+vitals: { bp: "130/80", hr: "105", rr: "22", spo2: "97", pain: "9" },
+nv: { pallor: "Pale toes", pulse: "Weak", paresthesia: "Numbness", paralysis: "None", poik: "Cool" },
+bodyPart: "part-leg-r", areaText: "Right Leg (Cast)",
+scenario: "ผู้ป่วยที่เพิ่งใส่เฝือกขาขวาบ่นปวดขามาก (9/10) ให้มอร์ฟีนแล้วไม่ดีขึ้น อาการปวดแย่ลงเมื่อพยาบาลจับปลายเท้ากระดกขึ้น (Passive stretch) ปลายเท้าซีดเย็น พยาบาลควรทำสิ่งใดเป็นอันดับแรก?",
+options: [
+{ text: "รายงานแพทย์ทันที และเตรียมอุปกรณ์สำหรับผ่าเฝือก (Bivalve cast)", correct: true, feedback: "ถูกต้อง! อาการปวดรุนแรง ยาไม่บรรเทา ปวดเมื่อยืดกล้ามเนื้อ (Pain with passive stretch) คือสัญญาณเอกลักษณ์ของ Compartment Syndrome ต้องรายงานด่วนเพื่อลดแรงดัน", pts: 20, hp: 10 },
+{ text: "ยกขาผู้ป่วยขึ้นให้สูงกว่าระดับหัวใจเพื่อลดบวมทันที", correct: false, feedback: "ผิด อันตราย! ห้ามยกขาสูงกว่าหัวใจในภาวะที่สงสัย Compartment Syndrome เพราะจะยิ่งลดแรงดันเลือดที่ไปเลี้ยงแขนขา ทำให้ขาดเลือดมากขึ้น ให้วางระดับหัวใจ", pts: -20, hp: -20 },
+{ text: "ใช้ถุงน้ำแข็งประคบที่เฝือกเพื่อช่วยให้เส้นเลือดหดตัวลดอาการบวม", correct: false, feedback: "ผิด อันตราย! การประคบเย็นจะทำให้หลอดเลือดหดตัว (Vasoconstriction) ยิ่งทำให้เนื้อเยื่อขาดเลือดมากขึ้นไปอีก", pts: -15, hp: -15 },
+{ text: "ให้ยาแก้ปวด Opioid เพิ่มขึ้นอีกโดสและรอประเมินซ้ำ 1 ชั่วโมง", correct: false, feedback: "ผิด หากเนื้อเยื่อขาดเลือดเกิน 4-6 ชั่วโมง อาจตายถาวร การรอคือข้อผิดพลาดร้ายแรง", pts: -20, hp: -20 }
+]
+},
+{
+id: "h2", diff: "hard",
+patient: { name: "นายสมพงษ์", age: "32 ปี", dx: "Femur Fracture", hx: "รอผ่าตัด ORIF อาการคงที่มา 24 ชั่วโมง" },
+vitals: { bp: "110/65", hr: "125", rr: "32", spo2: "86", pain: "5" },
+nv: { pallor: "Normal", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-leg-l", areaText: "Left Femur",
+scenario: "ผู้ป่วยกระดูกต้นขาหัก รอผ่าตัด จู่ๆ มีอาการกระสับกระส่าย สับสน (Confusion) หอบเหนื่อย (Tachypnea) ตรวจพบจุดเลือดออกเล็กๆ (Petechial rash) บริเวณคอและหน้าอก พยาบาลสงสัยภาวะใด?",
+options: [
+{ text: "Fat Embolism Syndrome (FES)", correct: true, feedback: "ถูกต้อง! Classic Triad ของ FES คือ Hypoxemia (หายใจเร็ว/O2 drop) + Neurologic changes (สับสน) + Petechial rash พบได้ 24-72 ชม. หลังหัก long bones", pts: 20, hp: 10 },
+{ text: "Pulmonary Embolism (PE) จากลิ่มเลือด", correct: false, feedback: "ผิด PE มีอาการคล้ายกัน (หอบเหนื่อย) แต่จะไม่มี Petechial rash ซึ่งเป็นจุดแยกโรคที่สำคัญ", pts: -10, hp: 0 },
+{ text: "Hypovolemic Shock จากเลือดออก", correct: false, feedback: "ผิด ช็อกจากการเสียเลือดจะไม่มีไข้สูง หรือจุด Petechiae แต่อาการสับสนเกิดจากเลือดไปเลี้ยงสมองไม่พอได้", pts: -5, hp: 0 },
+{ text: "Compartment Syndrome", correct: false, feedback: "ผิด Compartment syndrome อาการจะเกิดเฉพาะที่ (Local) ที่แขน/ขา ไม่ใช่อาการทางระบบการหายใจและสมอง", pts: -10, hp: -5 }
+]
+},
+{
+id: "h3", diff: "hard",
+patient: { name: "นายธีระ", age: "29 ปี", dx: "Spinal Cord Injury (T4)", hx: "อัมพาตครึ่งท่อนล่าง มาทำกายภาพ" },
+vitals: { bp: "210/110", hr: "50", rr: "22", spo2: "98", pain: "8 (Headache)" },
+nv: { pallor: "Flushed face", pulse: "Bounding", paresthesia: "N/A", paralysis: "Paraplegia", poik: "Sweating above T4" },
+bodyPart: "part-spine", areaText: "Thoracic Spine (T4)",
+scenario: "ผู้ป่วย SCI ระดับ T4 จู่ๆ บ่นปวดศีรษะรุนแรงตุบๆ หน้าแดง เหงื่อแตกบริเวณเหนือระดับที่บาดเจ็บ วัด BP ได้ 210/110 mmHg, HR 50 ครั้ง/นาที พยาบาลควรทำสิ่งใดเป็นอันดับแรก?",
+options: [
+{ text: "ปรับเตียงให้ผู้ป่วยนั่งตัวตรง (High Fowler's position) ทันที", correct: true, feedback: "ถูกต้อง! ผู้ป่วยมีภาวะ Autonomic Dysreflexia (AD) การให้นั่งตัวตรงทันทีจะช่วยใช้แรงโน้มถ่วงลดความดันเลือดที่ไปเลี้ยงสมอง ป้องกัน Stroke", pts: 20, hp: 10 },
+{ text: "จัดให้นอนราบและยกขาสูงเพื่อกระตุ้นการไหลเวียนเลือด", correct: false, feedback: "ผิด อันตรายมาก! การนอนราบจะยิ่งทำให้เลือดไปเลี้ยงสมองเพิ่มขึ้น เสี่ยงต่อเส้นเลือดในสมองแตก (CVA) จากความดันสูงปรี๊ด", pts: -25, hp: -25 },
+{ text: "ให้ยาแก้ปวด Paracetamol สำหรับอาการปวดศีรษะ", correct: false, feedback: "ผิด ปวดศีรษะเกิดจาก BP สูง ไม่ใช่ปวดทั่วไป ต้องแก้ที่ต้นเหตุของ AD (เช่น ตรวจสายสวนปัสสาวะอุดตัน สวนอุจจาระ)", pts: -10, hp: -10 },
+{ text: "เตรียมฉีดยา Atropine ตามแผนการรักษาเพื่อเพิ่มชีพจร", correct: false, feedback: "ผิด Bradycardia เป็นปฏิกิริยาชดเชย (Compensatory) ของร่างกายต่อ BP ที่สูง การให้ Atropine จะยิ่งทำให้ปัญหาแย่ลง", pts: -15, hp: -15 }
+]
+},
+{
+id: "h4", diff: "hard",
+patient: { name: "นางวิภา", age: "70 ปี", dx: "Post TKR (Left)", hx: "Day 4 น่องซ้ายบวมปวด" },
+vitals: { bp: "135/85", hr: "90", rr: "20", spo2: "97", pain: "6" },
+nv: { pallor: "Redness at calf", pulse: "Palpable", paresthesia: "None", paralysis: "None", poik: "Warm at calf" },
+bodyPart: "part-leg-l", areaText: "Left Calf",
+scenario: "ผู้ป่วยหลังผ่าตัด TKR วันที่ 4 บ่นปวดตึงที่น่องซ้ายมาก พยาบาลตรวจพบน่องซ้ายบวม แดง และอุ่นกว่าข้างขวา คลำได้เป็นก้อนตึงๆ (Homan's sign positive) การกระทำใดเป็นข้อห้ามเด็ดขาด?",
+options: [
+{ text: "นวดคลึงบริเวณน่องเพื่อลดอาการปวดตึงกล้ามเนื้อ", correct: true, feedback: "ถูกต้องที่เลือกข้อนี้! (นี่คือสิ่งที่ห้ามทำ) ผู้ป่วยมีอาการของ DVT การนวดจะทำให้ลิ่มเลือด (Thrombus) หลุดลอยไปอุดกั้นที่ปอด (Pulmonary Embolism) ซึ่งอันตรายถึงชีวิต", pts: 20, hp: 10 },
+{ text: "ให้ผู้ป่วยนอนพักบนเตียง (Bed rest) งดการเดินชั่วคราว", correct: false, feedback: "ผิด การให้ bed rest เป็นสิ่งที่ควรทำในเบื้องต้นเมื่อสงสัย DVT เพื่อป้องกันลิ่มเลือดหลุด", pts: -5, hp: 0 },
+{ text: "รายงานแพทย์เพื่อเตรียมส่งตรวจ Doppler Ultrasound", correct: false, feedback: "ผิด นี่เป็นสิ่งที่ถูกต้องและควรทำอย่างยิ่ง เพื่อยืนยันการวินิจฉัย DVT", pts: -5, hp: 0 },
+{ text: "ประเมินและวัดขนาดเส้นรอบวงของน่องเปรียบเทียบทั้งสองข้าง", correct: false, feedback: "ผิด นี่เป็นการพยาบาลที่ถูกต้องและควรทำเพื่อติดตามอาการบวม", pts: -5, hp: 0 }
+]
+},
+{
+id: "h5", diff: "hard",
+patient: { name: "เด็กชายจอน", age: "15 ปี", dx: "Body Cast", hx: "ใส่เฝือกดัดลำตัวจาก scoliosis" },
+vitals: { bp: "115/70", hr: "95", rr: "24", spo2: "98", pain: "5" },
+nv: { pallor: "Normal", pulse: "Normal", paresthesia: "None", paralysis: "None", poik: "Warm" },
+bodyPart: "part-torso", areaText: "Abdomen (Cast)",
+scenario: "ผู้ป่วยที่เพิ่งใส่ Body Cast หรือ Spica Cast มาได้ 2 วัน เริ่มบ่นปวดท้อง คลื่นไส้ อาเจียน และรู้สึกแน่นอึดอัดมากบริเวณหน้าท้อง (Epigastric) ไม่มีเสียงลำไส้ทำงาน (Bowel sounds absent) อาการนี้บ่งชี้ถึงภาวะใด?",
+options: [
+{ text: "Cast Syndrome (Superior Mesenteric Artery Syndrome)", correct: true, feedback: "ถูกต้อง! Cast syndrome เกิดจากเฝือกที่รัดลำตัวไปกดทับเส้นเลือด SMA ให้ไปกดทับลำไส้เล็กส่วน Duodenum ทำให้เกิดการอุดตันของลำไส้เฉียบพลัน คุกคามชีวิต", pts: 20, hp: 10 },
+{ text: "Compartment Syndrome บริเวณผนังหน้าท้อง", correct: false, feedback: "ผิด Compartment syndrome มักเกิดที่แขนขาที่มี Fascia หุ้ม ไม่เกิดในช่องท้องในบริบทของเฝือกแบบนี้", pts: -10, hp: -5 },
+{ text: "Fat Embolism Syndrome", correct: false, feedback: "ผิด อาการของ FES จะเด่นที่ปอด (หอบ) และสมอง ไม่ใช่อาการอุดตันของทางเดินอาหาร", pts: -5, hp: 0 },
+{ text: "อาการข้างเคียงปกติจากการถูกจำกัดการเคลื่อนไหว", correct: false, feedback: "ผิด อาเจียนและไม่มี Bowel sound ไม่ใช่อาการปกติ ต้องรายงานแพทย์ด่วนอาจต้องเจาะช่องหน้าท้องเฝือก (Bivalve)", pts: -15, hp: -10 }
+]
+},
+{
+id: "h6", diff: "hard",
+patient: { name: "นายธนา", age: "38 ปี", dx: "Spinal Cord Injury (C5)", hx: "เพิ่งประสบอุบัติเหตุมา 1 ชม. ใส่ Cervical collar" },
+vitals: { bp: "80/45", hr: "52", rr: "18", spo2: "95", pain: "0" },
+nv: { pallor: "Flushed skin", pulse: "Weak", paresthesia: "Loss of sensation", paralysis: "Tetraplegia", poik: "Warm dry skin" },
+bodyPart: "part-spine", areaText: "Cervical Spine",
+scenario: "ผู้ป่วยบาดเจ็บกระดูกสันหลังส่วนคอ (C5) แรกรับมีความดันเลือด 80/45 mmHg ชีพจร 52 ครั้ง/นาที ผิวหนังอุ่นและแห้งสีอมแดง พยาบาลประเมินว่าผู้ป่วยอยู่ในภาวะช็อกชนิดใด และเกิดจากกลไกใด?",
+options: [
+{ text: "Neurogenic shock จากการสูญเสีย Sympathetic tone", correct: true, feedback: "ถูกต้อง! อาการ BP ต่ำ + HR ช้า + ผิวอุ่นแห้ง (เพราะหลอดเลือดขยายตัว) คือลักษณะเฉพาะของ Neurogenic shock เกิดจากการสื่อสารของระบบประสาทซิมพาเทติกถูกตัดขาด", pts: 20, hp: 10 },
+{ text: "Hypovolemic shock จากเสียเลือดซ่อนเร้น", correct: false, feedback: "ผิด ถ้าเป็น Hypovolemic shock หัวใจจะต้องเต้นเร็ว (Tachycardia) และผิวจะซีดเย็น (Pale, cold, clammy) จาก vasoconstriction", pts: -10, hp: -5 },
+{ text: "Cardiogenic shock จากหัวใจชอกช้ำ (Myocardial contusion)", correct: false, feedback: "ผิด อาการผิวอุ่นแห้งไม่เข้ากับ Cardiogenic shock ซึ่งมักจะมีผิวซีดเย็น ท่ามกลางภาวะหัวใจล้มเหลว", pts: -10, hp: -5 },
+{ text: "Spinal shock จากไขสันหลังบวมเฉียบพลัน", correct: false, feedback: "ผิด Spinal shock เป็นภาวะสูญเสีย Reflex ต่ำกว่าระดับที่เจ็บทันที (Areflexia) ไม่ใช่ปัญหาเรื่อง Hemodynamic (BP/HR) แบบ Neurogenic shock", pts: -5, hp: 0 }
+]
+},
+{
+id: "h7", diff: "hard",
+patient: { name: "นางรัตนา", age: "65 ปี", dx: "Post THR (Left)", hx: "Day 3, กำลังเดินลงน้ำหนักครั้งแรก" },
+vitals: { bp: "110/70", hr: "115", rr: "28", spo2: "88", pain: "8 (Chest)" },
+nv: { pallor: "Pale", pulse: "Rapid", paresthesia: "None", paralysis: "None", poik: "Cool" },
+bodyPart: "part-torso", areaText: "Chest / Lungs",
+scenario: "ผู้ป่วยหลังทำ THR ขาซ้าย วันที่ 3 ขณะพยาบาลพยุงลุกเดินครั้งแรก ผู้ป่วยมีอาการเจ็บหน้าอกแปลบ (Pleuritic chest pain) หอบเหนื่อยรุนแรง เหงื่อแตก SpO2 drop เหลือ 88% คุณสงสัยภาวะใดมากที่สุด?",
+options: [
+{ text: "Pulmonary Embolism (PE)", correct: true, feedback: "ถูกต้อง! อาการเจ็บหน้าอกแปลบเฉียบพลัน หอบเหนื่อยรุนแรง SpO2 drop หลังทำผ่าตัดข้อเข่า/สะโพก เป็น Classic signs ของภาวะลิ่มเลือดอุดกั้นในปอด (PE)", pts: 20, hp: 10 },
+{ text: "Myocardial Infarction (Heart Attack)", correct: false, feedback: "ผิด แม้จะมีอาการคล้ายกัน แต่เจ็บหน้าอกแบบ MI มักเป็นแบบแน่นตื้อ (Crushing/Squeezing) ร้าวไปแขน/กราม ไม่ใช่เจ็บแปลบสัมพันธ์กับการหายใจเหมือน PE", pts: -5, hp: 0 },
+{ text: "Fat Embolism Syndrome (FES)", correct: false, feedback: "ผิด FES มักเกิดใน 24-72 ชม. แรกของการหัก Long bone และต้องมี Petechiae ร่วมด้วย ในเคส THR มักระวัง PE มากกว่า", pts: -10, hp: -5 },
+{ text: "Atelectasis (ปอดแฟบ)", correct: false, feedback: "ผิด ปอดแฟบมักมีไข้ หายใจตื้น ฟังเสียงปอดลดลง แต่ไม่ทำให้เกิดอาการเจ็บหน้าอกรุนแรงและฉุกเฉินระดับช็อกเฉียบพลันแบบนี้", pts: -5, hp: -5 }
+]
+},
+{
+id: "h8", diff: "hard",
+patient: { name: "ชายไม่ทราบชื่อ", age: "40 ปี", dx: "Crush injury Right arm", hx: "แขนถูกเครื่องจักรทับ 4 ชม." },
+vitals: { bp: "100/60", hr: "110", rr: "20", spo2: "98", pain: "10" },
+nv: { pallor: "Mottled", pulse: "Absent", paresthesia: "Numbness", paralysis: "Paralyzed", poik: "Cold" },
+bodyPart: "part-arm-r", areaText: "Right Forearm",
+scenario: "ผู้ป่วยถูกเครื่องจักรทับแขนขวานาน 4 ชั่วโมง แขนบวมตึงมาก แข็ง ปวดรุนแรง ชีพจร Radial คลำไม่ได้ ขยับนิ้วไม่ได้ ปลายมือซีดลาย (Mottled) สิ่งบ่งชี้ที่ช้าที่สุด (Late sign) ของภาวะนี้คืออะไร?",
+options: [
+{ text: "Pulselessness (คลำชีพจรไม่ได้) และ Paralysis (อัมพาต)", correct: true, feedback: "ถูกต้อง! อาการของ Compartment syndrome เริ่มจาก Pain, Paresthesia ส่วน ชีพจรหาย (Pulselessness) และขยับไม่ได้ (Paralysis) เป็นสัญญาณท้ายๆ (Late signs) ซึ่งแปลว่าเนื้อเยื่ออาจตายถาวรแล้ว", pts: 20, hp: 10 },
+{ text: "Pain out of proportion (ปวดรุนแรงผิดปกติ)", correct: false, feedback: "ผิด อาการปวดรุนแรง และปวดเมื่อยืดกล้ามเนื้อ เป็นสัญญาณแรกๆ (Early sign) ที่ต้องรีบตรวจจับ", pts: -10, hp: 0 },
+{ text: "Paresthesia (อาการชา)", correct: false, feedback: "ผิด อาการชาหรือรู้สึกยิบๆ เป็น Early sign แสดงว่าเส้นประสาทเริ่มถูกกดทับจากการบวม", pts: -10, hp: 0 },
+{ text: "Pallor (สีผิวซีด)", correct: false, feedback: "ผิด ผิวซีดเกิดในช่วงกลางๆ เมื่อเส้นเลือดฝอยถูกบีบ แต่ชีพจรใหญ่ยังอาจคลำได้อยู่", pts: -5, hp: 0 }
+]
+}
+];
+
+// Group by difficulty for adaptive logic
+const questions = {
+easy: questionBank.filter(q => q.diff === 'easy'),
+medium: questionBank.filter(q => q.diff === 'medium'),
+hard: questionBank.filter(q => q.diff === 'hard')
+};
+
+// ================= GAME STATE =================
+let gameState = {
+player: '',
+level: '',
+maxItems: 0,
+currItemIdx: 0,
+score: 0,
+hp: 100,
+correctCount: 0,
+history: [], // tracks correct/wrong sequence for adaptive
+currentQ: null,
+timer: 0,
+timerInterval: null,
+maxTime: 0,
+askedIds: new Set()
+};
+
+const levelConfigs = {
+amateur: { items: 15, time: 60, startDiff: 'easy', maxHp: 100 },
+intermediate: { items: 20, time: 45, startDiff: 'medium', maxHp: 100 },
+expert: { items: 25, time: 30, startDiff: 'hard', maxHp: 80 }
+};
+
+// ================= CORE FUNCTIONS =================
+
+function showScreen(screenId) {
+document.querySelectorAll('main > div').forEach(el => {
+if(el.id !== 'feedbackModal') el.classList.add('hidden');
+});
+document.getElementById(screenId).classList.remove('hidden');
+}
+
+function setupGame(level) {
+gameState.level = level;
+showScreen('screen-setup');
+document.getElementById('playerName').focus();
+}
+
+function startGame() {
+const nameInput = document.getElementById('playerName').value.trim();
+if (!nameInput) {
+alert('กรุณากรอกชื่อพยาบาล');
+return;
+}
+
+const config = levelConfigs[gameState.level];
+
+gameState = {
+player: nameInput,
+level: gameState.level,
+maxItems: config.items,
+currItemIdx: 0,
+score: 0,
+hp: config.maxHp,
+correctCount: 0,
+history: [],
+currentQ: null,
+timer: 0,
+timerInterval: null,
+maxTime: config.time,
+askedIds: new Set()
+};
+
+// Update Header
+document.getElementById('headerStats').classList.remove('hidden');
+document.getElementById('headLevel').textContent = gameState.level;
+document.getElementById('headScore').textContent = '0';
+document.getElementById('totalItems').textContent = gameState.maxItems;
+
+// Start
+showScreen('screen-game');
+nextQuestion();
+}
+
+function getNextDifficulty() {
+if (gameState.history.length === 0) return levelConfigs[gameState.level].startDiff;
+
+const lastAns = gameState.history[gameState.history.length - 1];
+const prevAns = gameState.history.length > 1 ? gameState.history[gameState.history.length - 2] : null;
+
+let currentDiff = gameState.currentQ ? gameState.currentQ.diff : levelConfigs[gameState.level].startDiff;
+
+// Adaptive Logic
+if (gameState.level === 'amateur') {
+// Amateur caps at medium
+if (lastAns && prevAns && currentDiff === 'easy') return 'medium'; // 2 correct
+if (!lastAns && currentDiff === 'medium') return 'easy';
+return currentDiff;
+}
+else if (gameState.level === 'intermediate') {
+if (lastAns && prevAns && currentDiff === 'easy') return 'medium';
+if (lastAns && prevAns && currentDiff === 'medium') return 'hard';
+if (!lastAns && !prevAns && currentDiff === 'hard') return 'medium';
+if (!lastAns && !prevAns && currentDiff === 'medium') return 'easy';
+return currentDiff;
+}
+else { // expert
+// Expert floor is medium
+if (!lastAns && !prevAns && currentDiff === 'hard') return 'medium';
+if (lastAns && currentDiff === 'medium') return 'hard';
+return 'hard';
+}
+}
+
+function nextQuestion() {
+if (gameState.hp <= 0 || gameState.currItemIdx >= gameState.maxItems) {
+endGame();
+return;
+}
+
+gameState.currItemIdx++;
+document.getElementById('currItem').textContent = gameState.currItemIdx;
+document.getElementById('itemBadge').textContent = `${gameState.currItemIdx}/${gameState.maxItems}`;
+
+// Determine difficulty and select question
+let targetDiff = getNextDifficulty();
+let pool = questions[targetDiff].filter(q => !gameState.askedIds.has(q.id));
+
+// Fallbacks if pool is empty
+if (pool.length === 0) {
+targetDiff = targetDiff === 'hard' ? 'medium' : (targetDiff === 'medium' ? 'easy' : 'medium');
+pool = questions[targetDiff].filter(q => !gameState.askedIds.has(q.id));
+if (pool.length === 0) { // Still empty, try the last one
+targetDiff = targetDiff === 'easy' ? 'hard' : 'hard';
+pool = questions[targetDiff].filter(q => !gameState.askedIds.has(q.id));
+}
+}
+
+// Safety check if absolutely no questions left
+if(pool.length === 0) { endGame(); return; }
+
+const randomIdx = Math.floor(Math.random() * pool.length);
+gameState.currentQ = pool[randomIdx];
+gameState.askedIds.add(gameState.currentQ.id);
+
+renderScenarioUI();
+}
+
+function renderScenarioUI() {
+const q = gameState.currentQ;
+
+// Colors based on diff
+const diffColors = { easy: 'text-emerald-400', medium: 'text-sky-400', hard: 'text-rose-400' };
+document.getElementById('diffBadge').className = diffColors[q.diff];
+document.getElementById('diffBadge').textContent = q.diff.toUpperCase();
+
+// Patient Data
+document.getElementById('patName').textContent = q.patient.name;
+document.getElementById('patAge').textContent = `อายุ ${q.patient.age}`;
+document.getElementById('patDx').textContent = q.patient.dx;
+document.getElementById('patHx').textContent = q.patient.hx;
+
+document.getElementById('vs-bp').textContent = q.vitals.bp;
+document.getElementById('vs-hr').textContent = q.vitals.hr;
+document.getElementById('vs-rr').textContent = q.vitals.rr;
+document.getElementById('vs-spo2').textContent = q.vitals.spo2;
+document.getElementById('vs-pain').textContent = q.vitals.pain;
+
+// Determine Patient Status Badge (Simple logic based on vitals/pain)
+const painNum = parseInt(q.vitals.pain);
+const hrNum = parseInt(q.vitals.hr);
+const sysBp = parseInt(q.vitals.bp.split('/')[0]);
+
+let status = 'Stable';
+let badgeCls = 'status-normal';
+if (painNum >= 8 || sysBp < 90 || hrNum > 110) { status = 'CRITICAL'; badgeCls = 'status-critical'; }
+else if (painNum >= 5 || sysBp > 140 || hrNum > 100) { status = 'WARNING'; badgeCls = 'status-warning'; }
+
+const badge = document.getElementById('patStatusBadge');
+badge.textContent = status;
+badge.className = `status-badge ${badgeCls}`;
+
+// Update NV Grid
+const nvMap = { 'nv-pallor': q.nv.pallor, 'nv-pulse': q.nv.pulse, 'nv-pares': q.nv.paresthesia, 'nv-para': q.nv.paralysis, 'nv-poik': q.nv.poik };
+for (const [id, val] of Object.entries(nvMap)) {
+const el = document.querySelector(`#${id} .val`);
+el.textContent = val;
+// simple red coloring for bad keywords, preserving the .val class so the query works next time
+if(['Absent','Weak','Numbness','Paralyzed','Cold','Pale','Redness'].some(v => val && val.includes(v))) {
+el.className = 'font-bold text-rose-400 val';
+} else {
+el.className = 'font-medium text-emerald-400 val';
+}
+}
+
+// Reset and Update Body SVG
+document.querySelectorAll('.body-part').forEach(el => {
+el.classList.remove('affected');
+el.setAttribute('fill', el.id.includes('spine') ? 'none' : (el.id.includes('hip')||el.id.includes('knee') ? '#cbd5e1' : '#94a3b8'));
+if(el.id.includes('spine')) el.setAttribute('stroke', '#475569');
+});
+
+if (q.bodyPart) {
+const target = document.getElementById(q.bodyPart);
+if(target) {
+target.classList.add('affected');
+if(target.id.includes('spine')) target.setAttribute('stroke', '#ef4444');
+}
+}
+document.getElementById('affectedAreaText').textContent = q.areaText;
+
+// Scenario & Options
+document.getElementById('scenarioText').textContent = q.scenario;
+
+const container = document.getElementById('optionsContainer');
+container.innerHTML = '';
+
+// Shuffle options
+const shuffledOpts = [...q.options].sort(() => Math.random() - 0.5);
+
+shuffledOpts.forEach((opt, idx) => {
+const btn = document.createElement('button');
+btn.className = 'option-btn w-full text-left bg-slate-800/80 hover:bg-slate-700 border border-slate-600 rounded-xl p-4 text-slate-200 shadow-sm flex items-start gap-3';
+btn.onclick = () => handleAnswer(opt, btn, shuffledOpts);
+btn.innerHTML = `
+<div class="flex-shrink-0 w-6 h-6 rounded-full border-2 border-slate-500 flex items-center justify-center mt-0.5 text-xs font-bold text-slate-400">${String.fromCharCode(65 + idx)}</div>
+<span class="flex-grow leading-relaxed">${opt.text}</span>
+`;
+container.appendChild(btn);
+});
+
+updateStatsUI();
+startTimer();
+}
+
+function startTimer() {
+clearInterval(gameState.timerInterval);
+gameState.timer = gameState.maxTime;
+const timeBar = document.getElementById('timeBar');
+
+gameState.timerInterval = setInterval(() => {
+gameState.timer -= 0.1;
+const pct = (gameState.timer / gameState.maxTime) * 100;
+timeBar.style.width = `${pct}%`;
+
+if (pct < 30) timeBar.style.backgroundColor = '#ef4444'; // red
+else if (pct < 60) timeBar.style.backgroundColor = '#f59e0b'; // yellow
+else timeBar.style.backgroundColor = '#0ea5e9'; // sky
+
+if (gameState.timer <= 0) {
+clearInterval(gameState.timerInterval);
+timeBar.style.width = '0%';
+handleTimeout();
+}
+}, 100);
+}
+
+function updateStatsUI() {
+document.getElementById('headScore').textContent = gameState.score;
+
+const hpPct = Math.max(0, (gameState.hp / levelConfigs[gameState.level].maxHp) * 100);
+document.getElementById('hpText').textContent = `${gameState.hp} HP`;
+const hpBar = document.getElementById('hpBar');
+hpBar.style.width = `${hpPct}%`;
+
+if (hpPct < 30) hpBar.className = 'h-2.5 rounded-full progress-bar-inner bg-rose-500 critical-pulse';
+else if (hpPct < 60) hpBar.className = 'h-2.5 rounded-full progress-bar-inner bg-amber-500';
+else hpBar.className = 'h-2.5 rounded-full progress-bar-inner bg-emerald-500';
+}
+
+function handleAnswer(selectedOpt, btnEl, allOpts) {
+clearInterval(gameState.timerInterval);
+
+// Disable all buttons
+const btns = document.querySelectorAll('.option-btn');
+btns.forEach(b => b.disabled = true);
+
+const isCorrect = selectedOpt.correct;
+gameState.history.push(isCorrect);
+
+if (isCorrect) {
+gameState.score += selectedOpt.pts;
+gameState.correctCount++;
+gameState.hp = Math.min(levelConfigs[gameState.level].maxHp, gameState.hp + selectedOpt.hp);
+btnEl.classList.add('option-correct');
+} else {
+gameState.score += selectedOpt.pts;
+gameState.hp += selectedOpt.hp;
+btnEl.classList.add('option-selected-wrong');
+
+// Highlight correct answer
+const correctIdx = allOpts.findIndex(o => o.correct);
+btns[correctIdx].classList.add('option-correct');
+}
+
+updateStatsUI();
+
+// Show feedback Modal
+setTimeout(() => {
+showFeedback(isCorrect, selectedOpt);
+}, 800);
+}
+
+function handleTimeout() {
+// Disable buttons
+document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+gameState.history.push(false);
+gameState.hp -= 10; // Penalty for timeout
+updateStatsUI();
+
+showFeedback(false, {
+feedback: "หมดเวลา! การตัดสินใจที่ล่าช้าในแผนกออร์โธปิดิกส์อาจส่งผลเสียต่ออวัยวะหรือชีวิตของผู้ป่วย",
+pts: 0, hp: -10
+});
+}
+
+function showFeedback(isCorrect, optData) {
+const modal = document.getElementById('feedbackModal');
+const card = document.getElementById('feedbackCard');
+
+modal.classList.remove('hidden');
+// slight delay for transition
+setTimeout(() => {
+modal.classList.remove('opacity-0');
+card.classList.remove('scale-95');
+}, 10);
+
+const icon = document.getElementById('feedbackIcon');
+const title = document.getElementById('feedbackTitle');
+const pts = document.getElementById('feedbackPts');
+const hp = document.getElementById('feedbackHp');
+
+if (isCorrect) {
+icon.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i>';
+title.textContent = 'ยอดเยี่ยม! (Correct)';
+title.className = 'text-xl font-bold mb-2 text-emerald-400';
+} else {
+icon.innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-500"></i>';
+title.textContent = optData.text ? 'ยังไม่ถูกต้อง (Incorrect)' : 'Time Out!';
+title.className = 'text-xl font-bold mb-2 text-rose-400';
+}
+
+document.getElementById('feedbackText').innerHTML = optData.feedback;
+
+pts.textContent = `${optData.pts > 0 ? '+' : ''}${optData.pts} Pts`;
+pts.className = optData.pts > 0 ? 'text-emerald-400' : (optData.pts < 0 ? 'text-rose-400' : 'text-slate-400');
+
+hp.textContent = `${optData.hp > 0 ? '+' : ''}${optData.hp} HP`;
+hp.className = optData.hp > 0 ? 'text-emerald-400' : (optData.hp < 0 ? 'text-rose-400' : 'text-slate-400');
+}
+
+function closeFeedback() {
+const modal = document.getElementById('feedbackModal');
+const card = document.getElementById('feedbackCard');
+
+modal.classList.add('opacity-0');
+card.classList.add('scale-95');
+
+setTimeout(() => {
+modal.classList.add('hidden');
+if (gameState.hp <= 0) {
+endGame();
+} else {
+nextQuestion();
+}
+}, 300);
+}
+
+function endGame() {
+clearInterval(gameState.timerInterval);
+document.getElementById('headerStats').classList.add('hidden');
+showScreen('screen-result');
+
+const accuracy = Math.round((gameState.correctCount / gameState.currItemIdx) * 100) || 0;
+const hpPct = Math.max(0, Math.round((gameState.hp / levelConfigs[gameState.level].maxHp) * 100));
+
+document.getElementById('resScore').textContent = gameState.score;
+document.getElementById('resAcc').textContent = `${accuracy}%`;
+document.getElementById('resHp').textContent = `${hpPct}%`;
+document.getElementById('resLevel').textContent = gameState.level;
+
+// Determine Rank/Feedback
+const icon = document.getElementById('resultIcon');
+const title = document.getElementById('resultTitle');
+const sub = document.getElementById('resultSubtitle');
+const fb = document.getElementById('resFeedback');
+
+if (gameState.hp <= 0) {
+icon.innerHTML = '<i class="fa-solid fa-skull-crossbones text-rose-500"></i>';
+title.textContent = 'Mission Failed';
+title.className = 'text-3xl font-bold mb-2 text-rose-500';
+sub.textContent = 'ผู้ป่วยอาการทรุดหนักเนื่องจากการตัดสินใจที่ผิดพลาด';
+fb.innerHTML = 'คุณสูญเสีย HP จนหมด ควรกลับไปทบทวน <strong>การประเมิน 6P\'s</strong>, อาการแสดงของ <strong>Compartment Syndrome</strong> และ <strong>Fat Embolism</strong> ซึ่งเป็นภาวะฉุกเฉินทางออร์โธปิดิกส์';
+} else {
+if (accuracy >= 80) {
+icon.innerHTML = '<i class="fa-solid fa-award text-yellow-400"></i>';
+title.textContent = 'Ortho Expert!';
+title.className = 'text-3xl font-bold mb-2 text-yellow-400';
+fb.innerHTML = 'ยอดเยี่ยม! คุณมี Clinical Judgment ที่เฉียบคมมาก สามารถแยกแยะภาวะแทรกซ้อนที่อันตรายและให้การพยาบาลได้อย่างปลอดภัยตามมาตรฐานวิชาชีพ';
+} else if (accuracy >= 50) {
+icon.innerHTML = '<i class="fa-solid fa-thumbs-up text-sky-400"></i>';
+title.textContent = 'Good Job';
+fb.innerHTML = 'ทำได้ดี แต่ยังมีบางสถานการณ์ที่อาจตัดสินใจคลาดเคลื่อน แนะนำให้ทบทวนเรื่องข้อควรระวังหลังผ่าตัดเปลี่ยนข้อ (THR/TKR) และการดูแล Traction';
+} else {
+icon.innerHTML = '<i class="fa-solid fa-book-medical text-slate-400"></i>';
+title.textContent = 'Needs Practice';
+fb.innerHTML = 'ควรฝึกฝนเพิ่มเติม ความปลอดภัยของผู้ป่วยออร์โธปิดิกส์ขึ้นอยู่กับการประเมินที่รวดเร็วและการตัดสินใจที่ถูกต้อง ห้ามละเลยสัญญาณเตือนแม้เพียงเล็กน้อย';
+}
+}
+
+saveToLeaderboard({
+name: gameState.player,
+score: gameState.score,
+acc: accuracy,
+level: gameState.level,
+date: new Date().toISOString()
+});
+}
+
+function saveToLeaderboard(entry) {
+let lb = JSON.parse(localStorage.getItem('orthoProLb') || '[]');
+lb.push(entry);
+lb.sort((a, b) => {
+if (b.score !== a.score) return b.score - a.score;
+return b.acc - a.acc;
+});
+if (lb.length > 20) lb.length = 20;
+localStorage.setItem('orthoProLb', JSON.stringify(lb));
+}
+
+function renderLeaderboard() {
+const lb = JSON.parse(localStorage.getItem('orthoProLb') || '[]');
+const tbody = document.getElementById('lbTableBody');
+
+if (lb.length === 0) {
+tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">ยังไม่มีบันทึกข้อมูล</td></tr>';
+return;
+}
+
+const lvlColors = { amateur: 'text-emerald-400', intermediate: 'text-sky-400', expert: 'text-rose-400' };
+
+tbody.innerHTML = lb.map((entry, idx) => {
+let rankHtml = `<span class="text-slate-400">${idx + 1}</span>`;
+if (idx === 0) rankHtml = `<i class="fa-solid fa-medal text-yellow-400 text-xl"></i>`;
+else if (idx === 1) rankHtml = `<i class="fa-solid fa-medal text-slate-300 text-xl"></i>`;
+else if (idx === 2) rankHtml = `<i class="fa-solid fa-medal text-amber-600 text-xl"></i>`;
+
+const date = new Date(entry.date).toLocaleDateString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+
+return `
+<tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition-colors">
+<td class="px-6 py-3 text-center font-bold">${rankHtml}</td>
+<td class="px-6 py-3 font-bold text-white">${entry.name}</td>
+<td class="px-6 py-3 text-right font-mono text-sky-400">${entry.score}</td>
+<td class="px-6 py-3 text-center text-emerald-400">${entry.acc}%</td>
+<td class="px-6 py-3 text-center capitalize ${lvlColors[entry.level] || 'text-slate-400'}">${entry.level}</td>
+<td class="px-6 py-3 text-slate-500 text-xs">${date}</td>
+</tr>
+`;
+}).join('');
+}
+
+// Initial Screen
+showScreen('screen-menu');
+</script>
+</body>
+</html>
